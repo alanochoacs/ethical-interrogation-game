@@ -41,22 +41,22 @@ questions_final = {
     "medium_pressure": ["Is there any final information you think is relevant?"],
     "high_pressure": ["You have been quite uncooperative. You have one last opportunity to explain your actions."]
 }
-keywords_explanation = ["because", "since", "went", "was", "due to", "as a result of", "in order to", "so that", "reason", "with"] # same as the explanation keywords
+keywords_explanation = ["because", "since", "went", "was", "due to", "as a result of", "in order to", "so that", "reason", "with"]
 
 # array of positive and negative affirmative keywords for questions
 positive_answers = ["yes", "yeah", "yep", "sure", "correct", "right"]
 negative_answers = ["no", "nope", "nah", "not", "incorrect", "wrong"]
 
 # array of hostile/unhelpful keywords for questions
-hostile_answers = ["don't have to", "none of your business", "refuse to answer", "not answering", "not telling you", "not saying", "not going to say", "not going to tell you"]
-evasive_answers = ["have rights", "lawyer", "no comment", "don't know", "dont know", "not sure", "can't remember", "cant remember", "no idea", "can't recall", "cant recall", "not certain", "not positive", "not 100% sure", "no thanks", "not answering", "not telling you", "not saying", "not going to say", "not going to tell you", "not guilty", "innocent"]
+hostile_answers = ["don't have to", "dont have to", "none of your business", "refuse to answer", "not answering", "not telling you", "not saying", "not going to say", "not going to tell you"]
+evasive_answers = ["don't know", "dont know", "not sure", "can't remember", "cant remember", "no idea", "can't recall", "cant recall", "not certain", "not positive", "not 100% sure", "no thanks", "not answering", "not telling you", "not saying", "not going to say", "not going to tell you"]
 
 # array of types of responses for each question
 response_positive = ["That sounds good.", "I appreciate your cooperation.", "Thank you for your honesty.", "I see. That makes sense."]
 response_evasive = ["I see.", "Okay.", "Alright.", "Hmm.", "Interesting."]
-response_nuetral = ["Thank you for your answer.", "I understand.", "Noted."]
+response_neutral = ["Thank you for your answer.", "I understand.", "Noted."]
 response_passive_aggressive = ["Are you sure about that?", "That doesn't sound right.", "I find that hard to believe.", "Is that so?"]
-response_times_up = ["Time's up.", "You have run out of time.", "You took too long to answer.", "Your time is up."]
+response_times_up = ["You seemed to have hesitated.", "You took your time.", "You took long to answer."]
 response_vague = [
     "Your previous statements raise questions.",
     "Your responses lack clarity.",
@@ -66,66 +66,84 @@ response_vague = [
 
 # function to ask a random question from a given list and check the user's answer for wanted keywords, hostile keywords, or unhelpful keywords
 def ask_adaptive_question(question_list, keywords=None, time_limit=15):
-    global cooperative, uncooperative, evasive
+    global cooperative, uncooperative, evasive 
+    local_cooperative, local_uncooperative, local_evasive = 0, 0, 0 # add to global vars at the end
 
-    officer_response = "Officer: "
+    officer_question = "Officer: "
 
     # determine the pressure level of the question based on the user's cooperation level, then pick a random question from the appropriate pressure level
-    # also add a comment to the officer's response based on the user's cooperation level
-    if uncooperative > 2:
+    # also add a comment to the officer's question based on the user's cooperation level
+    if uncooperative - cooperative > 2:
         level = "high_pressure"
-        officer_response += "Your lack of cooperation is concerning. "
-    elif evasive > 2:
+        print("Officer: Your lack of cooperation is concerning.")
+        time.sleep(2)
+    elif evasive > cooperative or evasive > uncooperative:
         level = "medium_pressure"
-        officer_response += "Your responses are being recorded. "
+        print("Officer: Your responses are being recorded.")
+        time.sleep(2)
     else:
         level = "low_pressure"
 
-    officer_response += random.choice(question_list[level])
-    print(officer_response)
+    officer_question += random.choice(question_list[level])
+    print(officer_question)
 
     start_time = time.time()
     user_input = input("You: ")
     elapsed = time.time() - start_time
 
-    # check if the user took too long to answer
-    if elapsed > time_limit:
-        evasive += 1
-        return choose_random_response(response_times_up)
+    officer_response = "Officer: "
+
+    user_lower = user_input.lower()
+    matched = False
+
+    # check if the user's answer contains any hostile keywords, if so, consider it uncooperative and skip the rest of the checks
+    if any(hostile in user_lower for hostile in hostile_answers):
+        matched = True
+        local_uncooperative += 1
+        officer_response += random.choice(response_passive_aggressive)
 
     # check if the user's answer contains any of the keywords, then determine if it's cooperative, evasive, or uncooperative
-    for keyword in keywords:
-        if keyword.lower() in user_input.lower():
-            # check if the user is giving an explanation by looking for certain words that indicate an explanation
-            explanation = any(word in user_input.lower() 
-                              for word in keywords_explanation)
+    elif keywords and not matched:
+        for keyword in keywords:
+            if keyword.lower() in user_lower:
+                matched = True
 
-            # if the user uses words that indicate giving an explanation, consider it cooperative
-            if explanation and len(user_input.split()) > 5:
-                cooperative += 1
-                return choose_random_response(response_positive)
-            # if the user uses words that indicate giving an explanation but their answer is short, consider it evasive
-            elif explanation:
-                cooperative += 1
-                return choose_random_response(response_evasive)
-            # if the user uses any of the wanted answer keywords but doesn't give an explanation, consider it evasive
-            else:
-                evasive += 1
-                return choose_random_response(response_evasive)
+                # check if the user is giving an explanation by looking for certain words that indicate an explanation
+                explanation = any(word in user_lower 
+                                for word in keywords_explanation)
+                
+                # if the user uses words that indicate giving an explanation and is verbose, add to cooperative level
+                if explanation and len(user_input.split()) > 5:
+                    local_cooperative += 2
+                else:
+                    local_cooperative += 1
+
+                officer_response += random.choice(response_positive)
+
+                break
     
     # check if the user's answer contains any of the hostile or unhelpful keywords
-    if any(hostile in user_input.lower() for hostile in hostile_answers):
-        uncooperative += 1
-        return choose_random_response(response_passive_aggressive)
-    elif any(evasive in user_input.lower() for evasive in evasive_answers):
-        evasive += 1
-        return choose_random_response(response_evasive)
-    else:
-        return choose_random_response(response_nuetral)
+    if not matched:
+        if any(evasive in user_lower for evasive in evasive_answers):
+            local_evasive += 1
+            officer_response += random.choice(response_evasive)
+        else:
+            officer_response += random.choice(response_neutral)
 
-# function to choose a random response from a given response type
-def choose_random_response(response_type):
-    return "Officer: " + random.choice(response_type)
+    # check if the user took too long to answer
+    if elapsed > time_limit:
+        local_evasive += 1
+        officer_response += " " + random.choice(response_times_up)
+    
+
+    # add local levels to global levels
+    cooperative += local_cooperative
+    uncooperative += local_uncooperative
+    evasive += local_evasive
+
+    time.sleep(1)
+
+    return officer_response
 
 def evaluate_cooperation():
     global cooperative, uncooperative, evasive
@@ -133,9 +151,9 @@ def evaluate_cooperation():
     if cooperative > uncooperative and cooperative > evasive:
         return "Officer: Thank you for your cooperation. This will be taken into account."
     elif uncooperative > cooperative and uncooperative > evasive:
-        return "Officer: Your lack of cooperation is noted. This may have consequences."
+        return "Officer: Your lack of cooperation is noted. This has also been recorded."
     elif evasive > cooperative and evasive > uncooperative:
-        return "Officer: Your evasiveness is noted. This may have consequences."
+        return "Officer: Your evasiveness is noted. This has also been recorded."
     else:
         return "Officer: Your responses are inconclusive. We will continue to evaluate your cooperation."
 
@@ -166,6 +184,7 @@ def main():
     # print vague response to the user's previous answers rasing questions (even if it doesn't)
     print("Officer: " + random.choice(response_vague))
     time.sleep(2)
+    print()
 
     # pick a random question to reask
     random_question = random.choice([[questions_why, keywords_why], [questions_where, keywords_where], [questions_when, keywords_when]])
