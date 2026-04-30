@@ -16,21 +16,21 @@ questions_why = {
 keywords_why = ["reason", "cause", "motivation"]
 
 questions_where = {
-    "low_pressure": ["Where were you last night?"],
+    "low_pressure": ["Where were you at the time of the incident?"],
     "medium_pressure": ["Can you account for your whereabouts during the incident?"],
     "high_pressure": ["Your location during the crime is unverified. Explain it."]
 }
-keywords_where = ["home", "work", "school", "neighbor", "plans"]
+keywords_where = ["home", "work", "school", "restaurant", "store", "shopping", "driving", "neighbor", "plans", "lunch", "dinner", "party", "out"]
 
 questions_when = {
     "low_pressure": ["When did you arrive at the crime scene?"],
     "medium_pressure": ["Can you provide a timeline of your activities during the time of the crime?"],
     "high_pressure": ["Your timeline of events is inconsistent with the evidence. Explain it."]
 }
-keywords_when = ["arrive", "leave", "time", "when", "before", "after", "pm", "am"]
+keywords_when = ["arrive", "leave", "arrived", "left", "time", "when", "before", "after", "pm", "am"]
 
 questions_who = {
-    "low_pressure": ["Who were you with last night?"],
+    "low_pressure": ["Who were you with at the time of the incident?"],
     "medium_pressure": ["Can you provide the names of anyone you were with during the incident?"],
     "high_pressure": ["Your associations during the crime are suspicious. Explain them."]
 }
@@ -77,7 +77,7 @@ def ask_adaptive_question(question_list, keywords=None, time_limit=15):
         level = "high_pressure"
         print("Officer: Your lack of cooperation is concerning.")
         time.sleep(2)
-    elif evasive > cooperative or evasive > uncooperative:
+    elif evasive > cooperative and evasive > uncooperative:
         level = "medium_pressure"
         print("Officer: Your responses are being recorded.")
         time.sleep(2)
@@ -94,6 +94,7 @@ def ask_adaptive_question(question_list, keywords=None, time_limit=15):
     officer_response = "Officer: "
 
     user_lower = user_input.lower()
+    words = user_lower.split()
     matched = False
 
     # check if the user's answer contains any hostile keywords, if so, consider it uncooperative and skip the rest of the checks
@@ -103,9 +104,9 @@ def ask_adaptive_question(question_list, keywords=None, time_limit=15):
         officer_response += random.choice(response_passive_aggressive)
 
     # check if the user's answer contains any of the keywords, then determine if it's cooperative, evasive, or uncooperative
-    elif keywords and not matched:
+    elif keywords:
         for keyword in keywords:
-            if keyword.lower() in user_lower:
+            if keyword.lower() in words:
                 matched = True
 
                 # check if the user is giving an explanation by looking for certain words that indicate an explanation
